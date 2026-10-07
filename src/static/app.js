@@ -7,11 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
-      const response = await fetch("/activities");
+      const response = await fetch("/activities", { cache: "no-store" });
       const activities = await response.json();
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.length = 1;
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -27,6 +28,45 @@ document.addEventListener("DOMContentLoaded", () => {
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
         `;
 
+        const participantsSection = document.createElement("div");
+        participantsSection.className = "participants-section";
+
+        const participantsHeading = document.createElement("h5");
+        participantsHeading.textContent = `Participants (${details.participants.length})`;
+        participantsSection.appendChild(participantsHeading);
+
+        const participantsList = document.createElement("ul");
+        participantsList.className = "participant-list";
+        if (details.participants.length === 0) {
+          const emptyMessage = document.createElement("li");
+          emptyMessage.className = "empty";
+          emptyMessage.textContent = "No participants yet";
+          participantsList.appendChild(emptyMessage);
+        } else {
+          details.participants.forEach((email) => {
+            const participant = document.createElement("li");
+
+            const emailSpan = document.createElement("span");
+            emailSpan.textContent = email;
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "delete-participant";
+            deleteButton.textContent = "🗑️";
+            deleteButton.title = `Unregister ${email}`;
+            deleteButton.setAttribute("aria-label", `Unregister ${email} from ${name}`);
+            deleteButton.addEventListener("click", () =>
+              unregisterParticipant(name, email, deleteButton)
+            );
+
+            participant.appendChild(emailSpan);
+            participant.appendChild(deleteButton);
+            participantsList.appendChild(participant);
+          });
+        }
+        participantsSection.appendChild(participantsList);
+        activityCard.appendChild(participantsSection);
+
         activitiesList.appendChild(activityCard);
 
         // Add option to select dropdown
@@ -38,6 +78,43 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
+    }
+  }
+
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = type;
+    messageDiv.classList.remove("hidden");
+
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
+  }
+
+  async function unregisterParticipant(activity, email, deleteButton) {
+    deleteButton.disabled = true;
+
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showMessage(result.message, "success");
+        await fetchActivities();
+      } else {
+        showMessage(result.detail || "An error occurred", "error");
+      }
+    } catch (error) {
+      showMessage("Failed to unregister. Please try again.", "error");
+      console.error("Error unregistering:", error);
+    } finally {
+      deleteButton.disabled = false;
     }
   }
 
@@ -62,6 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        await fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";

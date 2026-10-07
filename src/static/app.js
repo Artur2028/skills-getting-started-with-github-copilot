@@ -32,68 +32,39 @@ document.addEventListener("DOMContentLoaded", () => {
         participantsSection.className = "participants-section";
 
         const participantsHeading = document.createElement("h5");
-        participantsHeading.textContent = "Participants";
+        participantsHeading.textContent = `Participants (${details.participants.length})`;
         participantsSection.appendChild(participantsHeading);
 
-        if (details.participants.length > 0) {
-          const participantsList = document.createElement("ul");
-          participantsList.className = "participants-list";
-
-          details.participants.forEach((participant) => {
-            const listItem = document.createElement("li");
-
-            const participantName = document.createElement("span");
-            participantName.textContent = participant;
-            listItem.appendChild(participantName);
-
-            const removeButton = document.createElement("button");
-            removeButton.type = "button";
-            removeButton.className = "participant-remove";
-            removeButton.textContent = "×";
-            removeButton.title = `Unregister ${participant}`;
-            removeButton.setAttribute(
-              "aria-label",
-              `Unregister ${participant} from ${name}`
-            );
-            removeButton.addEventListener("click", async () => {
-              removeButton.disabled = true;
-
-              try {
-                const response = await fetch(
-                  `/activities/${encodeURIComponent(name)}/signup?email=${encodeURIComponent(participant)}`,
-                  { method: "DELETE" }
-                );
-                const result = await response.json();
-
-                messageDiv.textContent = result.message || result.detail;
-                messageDiv.className = response.ok ? "success" : "error";
-                messageDiv.classList.remove("hidden");
-
-                if (response.ok) {
-                  await fetchActivities();
-                }
-              } catch (error) {
-                messageDiv.textContent = "Failed to unregister participant. Please try again.";
-                messageDiv.className = "error";
-                messageDiv.classList.remove("hidden");
-                console.error("Error unregistering participant:", error);
-              } finally {
-                removeButton.disabled = false;
-              }
-            });
-            listItem.appendChild(removeButton);
-
-            participantsList.appendChild(listItem);
-          });
-
-          participantsSection.appendChild(participantsList);
+        const participantsList = document.createElement("ul");
+        participantsList.className = "participant-list";
+        if (details.participants.length === 0) {
+          const emptyMessage = document.createElement("li");
+          emptyMessage.className = "empty";
+          emptyMessage.textContent = "No participants yet";
+          participantsList.appendChild(emptyMessage);
         } else {
-          const emptyMessage = document.createElement("p");
-          emptyMessage.className = "participants-empty";
-          emptyMessage.textContent = "No participants yet.";
-          participantsSection.appendChild(emptyMessage);
-        }
+          details.participants.forEach((email) => {
+            const participant = document.createElement("li");
 
+            const emailSpan = document.createElement("span");
+            emailSpan.textContent = email;
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "delete-participant";
+            deleteButton.textContent = "🗑️";
+            deleteButton.title = `Unregister ${email}`;
+            deleteButton.setAttribute("aria-label", `Unregister ${email} from ${name}`);
+            deleteButton.addEventListener("click", () =>
+              unregisterParticipant(name, email, deleteButton)
+            );
+
+            participant.appendChild(emailSpan);
+            participant.appendChild(deleteButton);
+            participantsList.appendChild(participant);
+          });
+        }
+        participantsSection.appendChild(participantsList);
         activityCard.appendChild(participantsSection);
 
         activitiesList.appendChild(activityCard);
@@ -107,6 +78,43 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
+    }
+  }
+
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = type;
+    messageDiv.classList.remove("hidden");
+
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
+  }
+
+  async function unregisterParticipant(activity, email, deleteButton) {
+    deleteButton.disabled = true;
+
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showMessage(result.message, "success");
+        await fetchActivities();
+      } else {
+        showMessage(result.detail || "An error occurred", "error");
+      }
+    } catch (error) {
+      showMessage("Failed to unregister. Please try again.", "error");
+      console.error("Error unregistering:", error);
+    } finally {
+      deleteButton.disabled = false;
     }
   }
 

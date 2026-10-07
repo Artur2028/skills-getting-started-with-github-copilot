@@ -30,7 +30,7 @@ def test_get_activities_returns_seeded_data_without_caching(client):
 
 
 def test_signup_adds_participant(client):
-    activity_name = "Soccer Team"
+    activity_name = "Chess Club"
     email = "new-student@mergington.edu"
 
     response = client.post(
@@ -46,7 +46,7 @@ def test_signup_adds_participant(client):
 
 
 def test_signup_rejects_duplicate_participant(client):
-    activity_name = "Soccer Team"
+    activity_name = "Chess Club"
     email = "existing-student@mergington.edu"
     app_module.activities[activity_name]["participants"].append(email)
 
@@ -70,7 +70,7 @@ def test_signup_rejects_unknown_activity(client):
 
 
 def test_unregister_removes_participant(client):
-    activity_name = "Soccer Team"
+    activity_name = "Chess Club"
     email = "registered-student@mergington.edu"
     app_module.activities[activity_name]["participants"].append(email)
 
@@ -88,7 +88,7 @@ def test_unregister_removes_participant(client):
 
 def test_unregister_rejects_unregistered_participant(client):
     response = client.delete(
-        "/activities/Soccer Team/signup",
+        "/activities/Chess Club/signup",
         params={"email": "missing-student@mergington.edu"},
     )
 
